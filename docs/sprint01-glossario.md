@@ -192,7 +192,8 @@ da aceitação da ordem, antes de consumir o livro. A referência permanece a me
 quando uma ordem pendente é processada novamente.
 
 **Slippage** é a diferença entre o preço médio executado e essa referência.
-O relatório usa a convenção de **slippage desfavorável**:
+O cálculo usa a convenção de **slippage desfavorável**, na qual um resultado
+positivo representa piora no preço:
 
 ```text
 Compra (%) = (preço médio − ask de referência) / ask de referência × 100
@@ -200,6 +201,9 @@ Venda (%)  = (bid de referência − preço médio) / bid de referência × 100
 ```
 
 Assim, valor positivo significa preço pior; negativo significa preço melhor.
+O relatório usa o rótulo `slippage` e explicita a classificação: `desfavorável`
+para positivo, `favorável` para negativo e `neutro` para zero. Por exemplo,
+`slippage=0% (neutro)` significa execução exatamente no preço de referência.
 No cenário C: `(100.040 − 100.000) / 100.000 × 100 = 0,04%`.
 Sem execução ou sem referência inicial, o resultado é “não aplicável”.
 

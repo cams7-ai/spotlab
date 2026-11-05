@@ -35,9 +35,14 @@ def order_report(order: Order, wallet: Wallet) -> None:
     label = "Desembolso total" if order.side == Side.BUY else "Recebimento líquido"
     print(f"  Valor bruto={fmt(order.gross)} {pair.quote}; taxas={fmt(order.fees)} {pair.quote}")
     print(f"  {label}={fmt(order.net)} {pair.quote}; preço médio={fmt(order.average)} {pair.quote}/{pair.base}")
-    slippage = "não aplicável" if order.slippage is None else f"{fmt(order.slippage)}%"
+    value = order.slippage
+    if value is None:
+        slippage = "não aplicável"
+    else:
+        classification = "neutro" if value == D("0") else "desfavorável" if value > D("0") else "favorável"
+        slippage = f"{fmt(value)}% ({classification})"
     print(f"  Referência inicial={fmt(order.reference)} {pair.quote}/{pair.base}; "
-          f"slippage desfavorável={slippage}")
+          f"slippage={slippage}")
     print(f"  Reserva da ordem={fmt(order.reserved)} "
           f"{pair.quote if order.side == Side.BUY else pair.base}")
     wallet_report(wallet)
@@ -117,11 +122,23 @@ def scenario_d() -> None:
     order_report(order, wallet)
 
 
-def candle_report(candle: Candle) -> None:
-    print(f"Candle [{candle.start.isoformat()}, {candle.end.isoformat()}) — "
-          f"{'FECHADO' if candle.closed else 'ABERTO'}")
-    print(f"  O={fmt(candle.open)}; H={fmt(candle.high)}; L={fmt(candle.low)}; "
-          f"C={fmt(candle.close)} USDT/BTC; volume={fmt(candle.volume)} BTC")
+def table(headers: tuple[str, ...], rows: list[tuple[str, ...]], right_from: int) -> None:
+    """Tabela de texto simples, com colunas numéricas alinhadas à direita."""
+    widths = [max(len(row[index]) for row in [headers, *rows])
+              for index in range(len(headers))]
+    border = "+-" + "-+-".join("-" * width for width in widths) + "-+"
+
+    def line(row: tuple[str, ...]) -> str:
+        cells = [cell.rjust(width) if index >= right_from else cell.ljust(width)
+                 for index, (cell, width) in enumerate(zip(row, widths))]
+        return "| " + " | ".join(cells) + " |"
+
+    print(border)
+    print(line(headers))
+    print(border)
+    for row in rows:
+        print(line(row))
+    print(border)
 
 
 def scenario_e() -> None:
@@ -130,15 +147,31 @@ def scenario_e() -> None:
               for seconds, price, quantity in [(0, "100000", "0.001"), (20, "100100", "0.002"),
                                                (40, "99900", "0.003"), (50, "100050", "0.004"),
                                                (60, "101000", "0.005")]]
-    for trade in trades:
-        print(f"Negociação {trade.time.isoformat()}: {fmt(trade.quantity)} BTC a {fmt(trade.price)} USDT/BTC")
+    print(f"Data: {TIME.date().isoformat()} — todos os horários em UTC.")
+    print("\nNegociações fictícias:")
+    table(("Horário UTC", "Preço (USDT/BTC)", "Quantidade (BTC)"),
+          [(trade.time.strftime("%H:%M:%S"), fmt(trade.price), fmt(trade.quantity))
+           for trade in trades], right_from=1)
+    print("\nObservações dos candles — preços O/H/L/C em USDT/BTC:")
+    rows = []
     for seconds in (20, 50, 60):
         now = TIME + timedelta(seconds=seconds)
-        print(f"Observação em {now.isoformat()}:")
-        candle_report(Candle.at(TIME, trades, now))
-    print("A negociação exatamente no fim pertence ao próximo candle:")
-    candle_report(Candle.at(TIME + timedelta(minutes=1), trades, TIME + timedelta(minutes=1)))
+        candle = Candle.at(TIME, trades, now)
+        rows.append(candle_row(candle, now))
+    next_start = TIME + timedelta(minutes=1)
+    rows.append(candle_row(Candle.at(next_start, trades, next_start), next_start))
+    table(("Observação", "Início", "Fim (*)", "Estado", "O", "H", "L", "C", "Volume (BTC)"),
+          rows, right_from=4)
+    print("O=abertura; H=máxima; L=mínima; C=último preço observado (fechamento quando fechado).")
+    print("(*) Intervalo [início, fim): inclui o início e exclui o fim.")
+    print("A negociação às 12:01:00 pertence ao próximo candle, exibido na última linha.")
     print("OHLCV não revela toda a sequência intraperíodo nem qual de dois níveis de saída foi atingido primeiro.")
+
+
+def candle_row(candle: Candle, now: datetime) -> tuple[str, ...]:
+    return (now.strftime("%H:%M:%S"), candle.start.strftime("%H:%M:%S"),
+            candle.end.strftime("%H:%M:%S"), "FECHADO" if candle.closed else "ABERTO",
+            fmt(candle.open), fmt(candle.high), fmt(candle.low), fmt(candle.close), fmt(candle.volume))
 
 
 SCENARIOS = dict(zip("abcde", (scenario_a, scenario_b, scenario_c, scenario_d, scenario_e)))

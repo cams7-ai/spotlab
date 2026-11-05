@@ -22,6 +22,8 @@ python -m unittest discover -s tests -v
 
 O primeiro comando executa todos os cenários. Cada cenário cria carteira e livro
 novos. Os horários são fixos em UTC, a partir de `2026-01-01T12:00:00+00:00`.
+O cenário E apresenta tabelas de negociações e observações dos candles, com
+estado, OHLC e volume. A data e o fuso aparecem acima das tabelas.
 A execução não faz chamadas de rede e não precisa de credenciais. O
 `pyproject.toml` contém os metadados; setuptools só é necessário se for empacotar,
 não para executar os comandos acima.
@@ -55,7 +57,9 @@ decrescente. Cada execução reduz a quantidade do respectivo nível.
 
 A referência de slippage é capturada na aceitação da ordem, antes de consumir o
 livro, e mantida nas execuções posteriores. Slippage positivo significa execução
-pior; negativo, melhor. Sem execução ou sem referência inicial, não é aplicável.
+pior; negativo, melhor. O relatório identifica esses resultados como
+`desfavorável` e `favorável`, respectivamente, e zero como `neutro`.
+Sem execução ou sem referência inicial, não é aplicável.
 
 O saldo **disponível** pode financiar novas ordens; o **reservado** fica vinculado
 às ordens aceitas. Compra limitada reserva quantidade × limite × (1 + taxa).
